@@ -30,3 +30,17 @@
 *.exe
 *.out
 *.app
+
+# build folders
+build/
+cmake-build*
+
+# Fetched board-sdk
+board_sdk
+
+# Ozone tmp debug file
+*.user
+
+# IDE folders
+.vscode/
+.idea/
