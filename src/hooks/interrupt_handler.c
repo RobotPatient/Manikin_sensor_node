@@ -143,16 +143,16 @@ void DebugMon_Handler(void)
 /**
   * @brief This function handles System tick timer.
   */
-// void SysTick_Handler(void)
-// {
-//   /* USER CODE BEGIN SysTick_IRQn 0 */
+void SysTick_Handler(void)
+{
+  /* USER CODE BEGIN SysTick_IRQn 0 */
 
-//   /* USER CODE END SysTick_IRQn 0 */
-//   HAL_IncTick();
-//   /* USER CODE BEGIN SysTick_IRQn 1 */
+  /* USER CODE END SysTick_IRQn 0 */
+  HAL_IncTick();
+  /* USER CODE BEGIN SysTick_IRQn 1 */
 
-//   /* USER CODE END SysTick_IRQn 1 */
-// }
+  /* USER CODE END SysTick_IRQn 1 */
+}
 
 /******************************************************************************/
 /* STM32F4xx Peripheral Interrupt Handlers                                    */
@@ -160,7 +160,7 @@ void DebugMon_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
-
+extern DMA_HandleTypeDef hdma_i2c1_tx;
 /**
   * @brief This function handles USB On The Go FS global interrupt.
   */
@@ -178,3 +178,51 @@ void OTG_FS_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
+
+
+extern void sample_irq(TIM_TypeDef *tim);
+extern SPI_HandleTypeDef spi1_handle;
+
+void TIM2_IRQHandler(void) 
+{
+  if((TIM2->SR & TIM_FLAG_UPDATE)) {
+    sample_irq(TIM2);
+    TIM2->CR1 |= TIM_CR1_CEN;
+  }
+  TIM2->SR = ~TIM_IT_UPDATE;
+}
+
+void TIM3_IRQHandler(void) 
+{
+  if((TIM3->SR & TIM_FLAG_UPDATE)) {
+    sample_irq(TIM3);
+    TIM3->CR1 |= TIM_CR1_CEN;
+  }
+  TIM3->SR = ~TIM_IT_UPDATE;
+}
+
+void DMA1_Stream0_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(spi1_handle.hdmarx);
+}
+
+/**
+  * @brief  This function handles DMA Tx interrupt request.
+  * @param  None
+  * @retval None  
+  */
+void DMA1_Stream5_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(spi1_handle.hdmatx);
+}
+
+
+/**
+  * @brief  This function handles SPI interrupt request.
+  * @param  None
+  * @retval None
+  */
+void SPI3_IRQHandler(void)
+{
+  HAL_SPI_IRQHandler(&spi1_handle);
+}

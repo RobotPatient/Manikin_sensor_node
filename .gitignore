@@ -41,6 +41,9 @@ board_sdk
 # Ozone tmp debug file
 *.user
 
+# Fetched libraries
+lib/
+
 # IDE folders
 .vscode/
 .idea/
