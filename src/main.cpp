@@ -4,7 +4,11 @@
 #include "error_handling.h"
 #include <common/manikin_bit_manipulation.h>
 #include "sampling.h"
+#include "stm32f405xx.h"
+#include "stm32f4xx_hal.h"
 #include "flash.h"
+#include "can_wrapper.h"
+#include "SEGGER_RTT.h"
 
 uint16_t count = 0;
 
@@ -39,6 +43,10 @@ background_transmit_task (uint8_t *read_buf1, uint8_t *read_buf2)
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_15);
 }
 
+
+
+
+
 int
 main (void)
 {
@@ -51,13 +59,14 @@ main (void)
     /* Initialize the on-board led */
     BOARD_GPIO_Init();
     __HAL_RCC_GPIOB_CLK_ENABLE();
-
+    SEGGER_RTT_Init();
     MX_USB_DEVICE_Init();
     init_spi_flash_memory();
     init_gpio_for_sensors();
     init_i2c_sensor1();
     HAL_Delay(1);
     init_i2c_sensor2();
+    init_can();
 
     uint8_t read_buf[16];
     uint8_t read_buf2[16];
@@ -72,6 +81,7 @@ main (void)
         }
         else
         {
+            // can_phy_transmit(0, read_buf, 1);
             background_transmit_task(read_buf, read_buf2);
         }
         __WFI();

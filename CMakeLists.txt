@@ -98,12 +98,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Manikin_Software_Libraries_V3)
 
+FetchContent_Declare(
+    SEGGER_RTT
+    GIT_REPOSITORY https://github.com/SEGGERMicro/RTT.git
+    GIT_TAG master
+    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src/RTT
+)
+FetchContent_MakeAvailable(SEGGER_RTT)
+
 set(MANIKIN_PHY_CAN_PLATFORM "STM32F4")
 add_subdirectory(src/manikin_software_hooks)
 target_link_libraries(manikin_software_libraries manikin_software_hooks)
 # Create and link the target executable
-add_executable(${PROJECT_NAME} src/main.cpp src/hooks/syscalls.c src/hooks/hal_msp.c src/hooks/interrupt_handler.c src/hooks/error_handling.c src/sampling.c src/flash.c)
-target_link_libraries(${PROJECT_NAME} CMSIS::STM32::F405RG HAL::STM32::F4::CORTEX HAL::STM32::F4::DMA HAL::STM32::F4::PCD HAL::STM32::F4::GPIO HAL::STM32::F4::RCC HAL::STM32::F4::LL_USB STM32::NoSys USB_device USB_device_conf manikin_software_libraries)
-target_include_directories(${PROJECT_NAME} PUBLIC src/hooks)
+add_executable(${PROJECT_NAME} src/main.cpp src/hooks/syscalls.c src/hooks/hal_msp.c src/hooks/interrupt_handler.c src/hooks/error_handling.c src/sampling.c src/flash.c src/can/can_wrapper.c src/can/ttcan/ttcan_scheduler.c src/RTT/RTT/SEGGER_RTT.c src/RTT/RTT/SEGGER_RTT_printf.c src/RTT/RTT/SEGGER_RTT_ASM_ARMv7M.S)
+target_link_libraries(${PROJECT_NAME} CMSIS::STM32::F405RG HAL::STM32::F4::CORTEX HAL::STM32::F4::DMA HAL::STM32::F4::PCD HAL::STM32::F4::GPIO HAL::STM32::F4::RCC HAL::STM32::F4::LL_USB HAL::STM32::F4::CAN  STM32::NoSys USB_device USB_device_conf manikin_software_libraries)
+target_include_directories(${PROJECT_NAME} PUBLIC src/hooks src/can src/can/ttcan src/RTT/RTT src/RTT/Config)
 stm32_print_size_of_target(${PROJECT_NAME})
-
+stm32_generate_hex_file(${PROJECT_NAME})
