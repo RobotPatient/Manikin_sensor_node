@@ -47,5 +47,6 @@ lib/
 # IDE folders
 .vscode/
 .idea/
+.cache/
 
 src/RTT

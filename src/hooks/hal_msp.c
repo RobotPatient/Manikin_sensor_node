@@ -59,6 +59,7 @@ void SystemClock_Config(void)
    {
      Error_Handler();
    }
+    __PWR_CLK_ENABLE();
  }
  
  void BOARD_GPIO_Init(void)

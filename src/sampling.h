@@ -1,23 +1,38 @@
 #ifndef SAMPLING_H
 #define SAMPLING_H
 #ifdef __cplusplus
- extern "C" {
+extern "C"
+{
 #endif
 #include <common/manikin_types.h>
 #include <stddef.h>
-manikin_status_t init_gpio_for_sensors();
 
-manikin_status_t init_i2c_sensor1();
+    /**
+     * @brief Initialize I2C, Timer and GPIO peripherals for using the sensors
+     */
+    manikin_status_t init_peripherals_for_sensors();
 
-manikin_status_t init_i2c_sensor2();
+    /**
+     * @brief Checks and sample when sensor 1 has new measurement ready (poll
+     * timer flag)
+     * @param data_buf The buffer to store the resulting samples
+     */
+    manikin_status_t check_and_sample_sensor1(uint8_t *data_buf);
 
-manikin_status_t init_i2c_sensor3();
+    /**
+     * @brief Checks and sample when sensor 2 has new measurement ready (poll
+     * timer flag)
+     * @param data_buf The buffer to store the resulting samples
+     */
+    manikin_status_t check_and_sample_sensor2(uint8_t *data_buf);
 
-manikin_status_t check_and_sample_sensor1(uint8_t *data_buf, size_t data_buf_size);
+    /**
+     * @brief Checks and sample when sensor 3 has new measurement ready (poll
+     * timer flag)
+     * @param data_buf The buffer to store the resulting samples
+     */
+    manikin_status_t check_and_sample_sensor3(uint8_t *data_buf);
 
-manikin_status_t check_and_sample_sensor2(uint8_t *data_buf, size_t data_buf_size);
-
-manikin_status_t check_and_sample_sensor3(uint8_t *data_buf, size_t data_buf_size);
 #ifdef __cplusplus
 }
 #endif

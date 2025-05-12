@@ -1,21 +1,18 @@
-#include "usb_device.h"
-#include "usbd_cdc_if.h"
-#include "hal_msp.h"
-#include "error_handling.h"
+#include <stm32f4xx_hal.h>
 #include <i2c/i2c.h>
-#include <vl6180x/vl6180x.h>
-#include <sdp810/sdp810.h>
-#include <ads7138/ads7138.h>
+#include "board_conf.h"
+#include "common/manikin_types.h"
 #include <sample_timer/sample_timer.h>
 #include <common/manikin_bit_manipulation.h>
 #include <sample_timer/sample_timer.h>
 
 volatile uint8_t sensor_timer_1_trigger;
 volatile uint8_t sensor_timer_2_trigger;
+#if BOARD_CONF_USE_SENSOR3
 volatile uint8_t sensor_timer_3_trigger;
+#endif
 
 manikin_sensor_ctx_t sensor1_ctx;
-
 manikin_sensor_ctx_t sensor2_ctx;
 
 sample_timer_ctx_t timer1_ctx;
@@ -24,71 +21,96 @@ sample_timer_ctx_t timer2_ctx;
 void
 sample_irq (TIM_TypeDef *tim)
 {
-    if (tim == TIM2)
+#if BOARD_CONF_USE_SENSOR1
+    if (tim == BOARD_CONF_TIMER_SENSOR_1)
     {
         sensor_timer_1_trigger = 1;
     }
-    else if (tim == TIM3)
+#endif
+
+#if BOARD_CONF_USE_SENSOR2
+    if (tim == BOARD_CONF_TIMER_SENSOR_2)
     {
         sensor_timer_2_trigger = 1;
     }
+#endif
 }
-manikin_status_t
-init_gpio_for_sensors ()
+
+static manikin_status_t
+init_i2c0_pins ()
 {
-    /*Configure GPIO pin : PB10 & PB11 */
-    GPIO_InitTypeDef GPIO_InitStruct;
-    GPIO_InitStruct.Pin       = GPIO_PIN_10 | GPIO_PIN_11;
-    GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
-    GPIO_InitStruct.Pull      = GPIO_NOPULL;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
-    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    GPIO_InitStruct.Pin       = GPIO_PIN_6 | GPIO_PIN_7;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    GPIO_InitStruct.Pin       = GPIO_PIN_1;
-    GPIO_InitStruct.Alternate = 0;
-    GPIO_InitStruct.Mode      = GPIO_MODE_OUTPUT_PP;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
-    HAL_Delay(100);
-    __HAL_RCC_I2C1_CLK_ENABLE();
-    __HAL_RCC_I2C2_CLK_ENABLE();
-    __HAL_RCC_TIM2_CLK_ENABLE();
-    __HAL_RCC_TIM3_CLK_ENABLE();
+    GPIO_InitTypeDef pin_init;
+    pin_init.Pin       = BOARD_CONF_I2C0_SDA_PIN;
+    pin_init.Mode      = GPIO_MODE_AF_OD;
+    pin_init.Pull      = GPIO_NOPULL;
+    pin_init.Alternate = BOARD_CONF_I2C0_SDA_PIN_MUX;
+    pin_init.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+    HAL_GPIO_Init(BOARD_CONF_I2C0_SDA_PORT, &pin_init);
+
+    pin_init.Pin       = BOARD_CONF_I2C0_SCL_PIN;
+    pin_init.Alternate = BOARD_CONF_I2C0_SCL_PIN_MUX;
+    HAL_GPIO_Init(BOARD_CONF_I2C0_SCL_PORT, &pin_init);
+
+    pin_init.Pin       = BOARD_CONF_SENSOR1_RESET_PIN;
+    pin_init.Alternate = 0;
+    pin_init.Mode      = GPIO_MODE_OUTPUT_PP;
+    HAL_GPIO_Init(BOARD_CONF_SENSOR1_RESET_PORT, &pin_init);
+    HAL_GPIO_WritePin(BOARD_CONF_SENSOR1_RESET_PORT,
+                      BOARD_CONF_SENSOR1_RESET_PIN,
+                      GPIO_PIN_SET);
+
+    BOARD_CONF_I2C0_CLK_EN();
     return MANIKIN_STATUS_OK;
 }
 
-manikin_status_t
+static manikin_status_t
+init_i2c1_pins ()
+{
+    GPIO_InitTypeDef pin_init;
+    pin_init.Pin       = BOARD_CONF_I2C1_SDA_PIN;
+    pin_init.Mode      = GPIO_MODE_AF_OD;
+    pin_init.Pull      = GPIO_NOPULL;
+    pin_init.Alternate = BOARD_CONF_I2C1_SDA_PIN_MUX;
+    pin_init.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+    HAL_GPIO_Init(BOARD_CONF_I2C1_SDA_PORT, &pin_init);
+
+    pin_init.Pin       = BOARD_CONF_I2C1_SCL_PIN;
+    pin_init.Alternate = BOARD_CONF_I2C1_SCL_PIN_MUX;
+    HAL_GPIO_Init(BOARD_CONF_I2C1_SCL_PORT, &pin_init);
+
+    return MANIKIN_STATUS_OK;
+}
+
+static manikin_status_t
 init_i2c_sensor1 ()
 {
     sensor_timer_1_trigger = 0;
-    manikin_i2c_init(I2C2, MANIKIN_I2C_SPEED_400KHz);
-    sensor1_ctx.i2c         = I2C2;
-    sensor1_ctx.i2c_addr    = 0x29;
-    timer1_ctx.frequency    = 100;
-    timer1_ctx.timer        = TIM2;
+    manikin_i2c_init(BOARD_CONF_I2C0_INSTANCE, BOARD_CONF_I2C0_SPEED);
+    sensor1_ctx.i2c         = BOARD_CONF_I2C0_INSTANCE;
+    sensor1_ctx.i2c_addr    = BOARD_CONF_SENSOR1_ADDR;
+    timer1_ctx.frequency    = BOARD_CONF_SENSOR1_SAMPLE_RATE_HZ;
+    timer1_ctx.timer        = BOARD_CONF_TIMER_SENSOR_1;
     timer1_ctx.watchdog     = WWDG;
-    manikin_status_t status = vl6180x_init_sensor(&sensor1_ctx);
+    manikin_status_t status = BOARD_CONF_SENSOR1_INIT(&sensor1_ctx);
     if (status == MANIKIN_STATUS_OK)
     {
         sample_timer_init(&timer1_ctx);
         sample_timer_start(&timer1_ctx);
     }
+    sensor_timer_1_trigger = 0;
     return MANIKIN_STATUS_OK;
 }
 
-manikin_status_t
+static manikin_status_t
 init_i2c_sensor2 ()
 {
-    manikin_i2c_init(I2C1, MANIKIN_I2C_SPEED_400KHz);
-    sensor2_ctx.i2c         = I2C1;
-    sensor2_ctx.i2c_addr    = 0x10;
-    timer2_ctx.frequency    = 50;
-    timer2_ctx.timer        = TIM3;
+    manikin_i2c_init(BOARD_CONF_I2C1_INSTANCE, BOARD_CONF_I2C1_SPEED);
+    sensor2_ctx.i2c         = BOARD_CONF_I2C1_INSTANCE;
+    sensor2_ctx.i2c_addr    = BOARD_CONF_SENSOR2_ADDR;
+    timer2_ctx.frequency    = BOARD_CONF_SENSOR2_SAMPLE_RATE_HZ;
+    timer2_ctx.timer        = BOARD_CONF_TIMER_SENSOR_2;
     timer2_ctx.watchdog     = WWDG;
-    manikin_status_t status = ads7138_init_sensor(&sensor2_ctx);
+    manikin_status_t status = BOARD_CONF_SENSOR2_INIT(&sensor2_ctx);
     if (status == MANIKIN_STATUS_OK)
     {
         sample_timer_init(&timer2_ctx);
@@ -98,15 +120,38 @@ init_i2c_sensor2 ()
     return MANIKIN_STATUS_OK;
 }
 
-manikin_status_t
+#if BOARD_CONF_USE_SENSOR3
+static manikin_status_t
 init_i2c_sensor3 ()
 {
     sensor_timer_3_trigger = 0;
     return MANIKIN_STATUS_OK;
 }
+#endif
 
 manikin_status_t
-check_and_sample_sensor1 (uint8_t *data_buf, size_t data_buf_size)
+init_peripherals_for_sensors ()
+{
+#if BOARD_CONF_USE_SENSOR1
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    init_i2c0_pins();
+    BOARD_CONF_I2C0_CLK_EN();
+    BOARD_CONF_TIMER_SENSOR_1_EN();
+    init_i2c_sensor1();
+#endif
+
+#if BOARD_CONF_USE_SENSOR2
+    init_i2c1_pins();
+    BOARD_CONF_I2C1_CLK_EN();
+    BOARD_CONF_TIMER_SENSOR_2_EN();
+    init_i2c_sensor2();
+#endif
+
+    return MANIKIN_STATUS_OK;
+}
+
+manikin_status_t
+check_and_sample_sensor1 (uint8_t *data_buf)
 {
     if (sensor_timer_1_trigger)
     {
@@ -114,7 +159,8 @@ check_and_sample_sensor1 (uint8_t *data_buf, size_t data_buf_size)
             = sample_timer_start_cb_handler(&timer1_ctx, &sensor1_ctx);
         if (status == MANIKIN_STATUS_OK)
         {
-            status = vl6180x_read_sensor(&sensor1_ctx, (uint8_t *)data_buf);
+            status
+                = BOARD_CONF_SENSOR1_SAMPLE(&sensor1_ctx, (uint8_t *)data_buf);
         }
         sample_timer_end_cb_handler(&timer1_ctx, &sensor1_ctx, status);
         sensor_timer_1_trigger = 0;
@@ -123,7 +169,7 @@ check_and_sample_sensor1 (uint8_t *data_buf, size_t data_buf_size)
 }
 
 manikin_status_t
-check_and_sample_sensor2 (uint8_t *data_buf, size_t data_buf_size)
+check_and_sample_sensor2 (uint8_t *data_buf)
 {
     if (sensor_timer_2_trigger)
     {
@@ -131,7 +177,7 @@ check_and_sample_sensor2 (uint8_t *data_buf, size_t data_buf_size)
             = sample_timer_start_cb_handler(&timer2_ctx, &sensor2_ctx);
         if (status == MANIKIN_STATUS_OK)
         {
-            status = ads7138_read_sensor(&sensor2_ctx, data_buf);
+            status = BOARD_CONF_SENSOR2_SAMPLE(&sensor2_ctx, data_buf);
         }
         sample_timer_end_cb_handler(&timer2_ctx, &sensor2_ctx, status);
         sensor_timer_2_trigger = 0;
@@ -140,7 +186,7 @@ check_and_sample_sensor2 (uint8_t *data_buf, size_t data_buf_size)
 }
 
 manikin_status_t
-check_and_sample_sensor3 (uint8_t *data_buf, size_t data_buf_size)
+check_and_sample_sensor3 (uint8_t *data_buf)
 {
     return MANIKIN_STATUS_OK;
 }
