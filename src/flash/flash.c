@@ -74,19 +74,6 @@ init_spi_flash_memory ()
     __HAL_RCC_SPI3_CLK_ENABLE();
     manikin_spi_init(SPI3, (10*10e6));
     w25qxx_init(&mem_ctx);
-    // HAL_Delay(100);
-    // w25qxx_erase_sector(&mem_ctx, 0);
-    // HAL_Delay(1000);
-    // w25qxx_erase_sector(&mem_ctx, 1);
-    // HAL_Delay(1000);
-    // int i = 0;
-    // while(i < 1023){
-    // test_tx_buf[i++] = 0x50;
-    // test_tx_buf[i++] = 0x10;
-    // }
-    // w25qxx_write(&mem_ctx, test_tx_buf, 5, 1024);
-    // HAL_Delay(450);
-    // w25qxx_read(&mem_ctx, test_rx_buf, 5, 1024);
     int err = lfs_mount(&lfs, &lfs_flash_cfg);
 
     // reformat if we can't mount the filesystem

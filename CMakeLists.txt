@@ -44,8 +44,7 @@ add_compile_options(-g3
     -DLFS_YES_TRACE)
 
 # We need to download the full cube hal for the F4 USB middleware
-stm32_fetch_cmsis(F4)
-stm32_fetch_hal(F4)
+stm32_fetch_cube(F4)
 
 # Get the HAL and CMSIS components for our STM32 series mcu
 find_package(CMSIS COMPONENTS STM32F405RG REQUIRED)
@@ -53,63 +52,39 @@ find_package(HAL COMPONENTS STM32F4 REQUIRED)
 
 # Global config dir for the HAL and CMSIS
 include_directories(config)
+FetchContent_Declare(
+    EMBEDDED_CLI
+    GIT_REPOSITORY https://github.com/funbiscuit/embedded-cli
+    GIT_TAG v0.1.4
+    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/lib/embedded-cli
+)
+FetchContent_MakeAvailable(EMBEDDED_CLI)
+add_library(cli src/cli/cli.c)
+target_include_directories(cli PUBLIC src/cli)
 
+target_link_libraries(embedded_cli_lib CMSIS::STM32::F405RG)
 # Add seperate USB_device target containing all usb middleware
-add_library(USB_device  ${CMAKE_SOURCE_DIR}/src/usb/Class/CDC_ECM/Src/usbd_cdc_ecm.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_cdc_ecm_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/CDC_RNDIS/Src/usbd_cdc_rndis.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_cdc_rndis_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/VIDEO/Src/usbd_video.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_video_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/CDC_ACM/Src/usbd_cdc_acm.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_cdc_acm_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/AUDIO_SPKR/Src/usbd_audio_spkr.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_audio_spkr_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/COMPOSITE/Src/usbd_composite.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/AUDIO_MIC/Src/usbd_audio_mic.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_audio_mic_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/HID_MOUSE/Src/usbd_hid_mouse.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/PRINTER/Src/usbd_printer.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_printer_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/DFU/Src/usbd_dfu.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_dfu_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Core/Src/usbd_core.c
-${CMAKE_SOURCE_DIR}/src/usb/Core/Src/usbd_ctlreq.c
-${CMAKE_SOURCE_DIR}/src/usb/Core/Src/usbd_ioreq.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usb_device.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_desc.c
-${CMAKE_SOURCE_DIR}/src/usb/Target/usbd_conf.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/HID_CUSTOM/Src/usbd_hid_custom.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_hid_custom_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/HID_KEYBOARD/Src/usbd_hid_keyboard.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/MSC/Src/usbd_msc.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/MSC/Src/usbd_msc_bot.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/MSC/Src/usbd_msc_data.c
-${CMAKE_SOURCE_DIR}/src/usb/Class/MSC/Src/usbd_msc_scsi.c
-${CMAKE_SOURCE_DIR}/src/usb/App/usbd_msc_if.c
-${CMAKE_SOURCE_DIR}/src/usb/Target/usb_otg.c)
-
-target_include_directories(USB_device PUBLIC ${CMAKE_SOURCE_DIR}/src/usb/Class/MSC/Inc
-${CMAKE_SOURCE_DIR}/src/usb/App
-${CMAKE_SOURCE_DIR}/src/usb/Class/HID_KEYBOARD/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/HID_CUSTOM/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Core/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Target
-${CMAKE_SOURCE_DIR}/src/usb/Class/DFU/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/PRINTER/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/HID_MOUSE/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/AUDIO_MIC/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/AUDIO_COMMON
-${CMAKE_SOURCE_DIR}/src/usb/Class/COMPOSITE/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/AUDIO_SPKR/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/CDC_ACM/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/VIDEO/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/CDC_RNDIS/Inc
-${CMAKE_SOURCE_DIR}/src/usb/Class/CDC_ECM/Inc
-${CMAKE_CURRENT_LIST_DIR}/src/hooks
-${CMAKE_SOURCE_DIR}/config)
+add_library(USB_device ${CMAKE_CURRENT_LIST_DIR}/src/usb/usbd_conf_template.c
+    ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
+    ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
+    ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_desc_template.c
+    ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
+    ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc_if_template.c
+    ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c)
+target_include_directories(USB_device PUBLIC ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Core/Inc
+    ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
+    ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Class/HID/Inc
+    ${CMAKE_CURRENT_LIST_DIR}/src/usb)
 target_link_libraries(USB_device CMSIS::STM32::F405RG HAL::STM32::F4::LL_USB HAL::STM32::F4::PCDEx)
 
+add_library(USB_device_conf ${CMAKE_CURRENT_LIST_DIR}/src/usb/usb_device.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/usb/usbd_cdc_if.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/usb/usbd_conf.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/usb/usbd_desc.c
+    src/cli/cli_setup.c)
+target_include_directories(USB_device_conf PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src/usb ${CMAKE_CURRENT_LIST_DIR}/src/hooks ${CMAKE_CURRENT_LIST_DIR}/src/cli)
+target_link_libraries(USB_device_conf USB_device embedded_cli_lib CMSIS::STM32::F405RG)
+target_link_libraries(cli embedded_cli_lib USB_device_conf CMSIS::STM32::F405RG)
 # Pull in the sensor & flash drivers for this project
 set(PLATFORM_DEFINED STM32F4)
 FetchContent_Declare(
@@ -144,6 +119,11 @@ add_library(littlefs lib/littlefs/lfs_util.c
 target_include_directories(littlefs PUBLIC lib/littlefs)
 target_link_libraries(littlefs CMSIS::STM32::F405RG)
 
+
+
+
+
+
 set(MANIKIN_PHY_CAN_PLATFORM "STM32F4")
 add_subdirectory(src/manikin_software_hooks)
 target_link_libraries(manikin_software_libraries manikin_software_hooks)
@@ -170,9 +150,10 @@ target_link_libraries(${PROJECT_NAME} CMSIS::STM32::F405RG
                                       HAL::STM32::F4::LL_USB 
                                       HAL::STM32::F4::CAN  
                                       STM32::NoSys 
-                                      USB_device 
+                                      USB_device_conf
                                       manikin_software_libraries
                                       littlefs
+                                      cli
                                       )
 
 target_include_directories(${PROJECT_NAME} PUBLIC src/hooks src/can src/flash lib/RTT/Config lib/RTT/RTT)
