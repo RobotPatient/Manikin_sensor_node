@@ -17,7 +17,7 @@
   */
 
 #include "usbd_cdc_if.h"
-#include "cli_setup.h"
+#include "cli.h"
 
 /* Create buffer for reception and transmission           */
 /* It's up to user to redefine and/or remove those define */
@@ -156,8 +156,8 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
-  cli_on_user_input(UserRxBufferFS, *Len);
-  memset(UserRxBufferFS, '\0', *Len);
+  cli_on_input(UserRxBufferFS, *Len);
+  // memset(UserRxBufferFS, '\0', *Len);
   return (USBD_OK);
 }
 

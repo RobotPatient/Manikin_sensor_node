@@ -52,17 +52,21 @@ find_package(HAL COMPONENTS STM32F4 REQUIRED)
 
 # Global config dir for the HAL and CMSIS
 include_directories(config)
-FetchContent_Declare(
-    EMBEDDED_CLI
-    GIT_REPOSITORY https://github.com/funbiscuit/embedded-cli
-    GIT_TAG v0.1.4
-    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/lib/embedded-cli
-)
-FetchContent_MakeAvailable(EMBEDDED_CLI)
-add_library(cli src/cli/cli.c)
-target_include_directories(cli PUBLIC src/cli)
 
-target_link_libraries(embedded_cli_lib CMSIS::STM32::F405RG)
+FetchContent_Declare(
+    LWRB
+    GIT_REPOSITORY https://github.com/MaJerle/lwrb.git
+    GIT_TAG v3.2.0
+    SOURCE_DIR {CMAKE_CURRENT_LIST_DIR}/lib/lwrb
+)
+FetchContent_MakeAvailable(LWRB)
+
+FetchContent_Declare(cbor
+                      GIT_REPOSITORY https://github.com/libmcu/cbor.git
+                      GIT_TAG main
+)
+FetchContent_MakeAvailable(cbor)
+
 # Add seperate USB_device target containing all usb middleware
 add_library(USB_device ${CMAKE_CURRENT_LIST_DIR}/src/usb/usbd_conf_template.c
     ${CMAKE_BINARY_DIR}/_deps/stm32cubef4-src/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
@@ -81,10 +85,11 @@ add_library(USB_device_conf ${CMAKE_CURRENT_LIST_DIR}/src/usb/usb_device.c
     ${CMAKE_CURRENT_LIST_DIR}/src/usb/usbd_cdc_if.c
     ${CMAKE_CURRENT_LIST_DIR}/src/usb/usbd_conf.c
     ${CMAKE_CURRENT_LIST_DIR}/src/usb/usbd_desc.c
-    src/cli/cli_setup.c)
+    src/cli/cli.c)
 target_include_directories(USB_device_conf PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src/usb ${CMAKE_CURRENT_LIST_DIR}/src/hooks ${CMAKE_CURRENT_LIST_DIR}/src/cli)
-target_link_libraries(USB_device_conf USB_device embedded_cli_lib CMSIS::STM32::F405RG)
-target_link_libraries(cli embedded_cli_lib USB_device_conf CMSIS::STM32::F405RG)
+target_link_libraries(cbor CMSIS::STM32::F405RG)
+target_link_libraries(USB_device_conf USB_device CMSIS::STM32::F405RG lwrb cbor)
+
 # Pull in the sensor & flash drivers for this project
 set(PLATFORM_DEFINED STM32F4)
 FetchContent_Declare(
@@ -119,15 +124,18 @@ add_library(littlefs lib/littlefs/lfs_util.c
 target_include_directories(littlefs PUBLIC lib/littlefs)
 target_link_libraries(littlefs CMSIS::STM32::F405RG)
 
-
-
-
-
+FetchContent_Declare(
+    isotp
+    GIT_REPOSITORY https://github.com/SimonCahill/isotp-c.git
+    GIT_TAG master
+    SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/lib/isotp
+)
+FetchContent_MakeAvailable(isotp)
 
 set(MANIKIN_PHY_CAN_PLATFORM "STM32F4")
 add_subdirectory(src/manikin_software_hooks)
 target_link_libraries(manikin_software_libraries manikin_software_hooks)
-
+target_link_libraries(isotp CMSIS::STM32::F405RG)
 # Create and link the target executable
 add_executable(${PROJECT_NAME} src/main.cpp 
                                src/hooks/syscalls.c 
@@ -153,9 +161,9 @@ target_link_libraries(${PROJECT_NAME} CMSIS::STM32::F405RG
                                       USB_device_conf
                                       manikin_software_libraries
                                       littlefs
-                                      cli
+                                      isotp
                                       )
 
-target_include_directories(${PROJECT_NAME} PUBLIC src/hooks src/can src/flash lib/RTT/Config lib/RTT/RTT)
+target_include_directories(${PROJECT_NAME} PUBLIC src/hooks src/can src/flash lib/RTT/Config lib/RTT/RTT lib/iso-tp)
 stm32_print_size_of_target(${PROJECT_NAME})
 stm32_generate_hex_file(${PROJECT_NAME})

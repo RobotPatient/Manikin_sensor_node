@@ -171,7 +171,12 @@ i2c_hal_bus_reset (manikin_i2c_inst_t i2c_inst)
     /* Clear i2c reg */
     i2c_inst->DR = 0;
     /* Remove power from the sensors */
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+    if(i2c_inst == I2C2) {
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, 0);
+    } else {
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 0);
+    }
+
     return 0;
 }
 
@@ -192,9 +197,15 @@ i2c_hal_get_baud (manikin_i2c_inst_t i2c_inst)
 }
 
 int
-i2c_hal_bus_recover ()
+i2c_hal_bus_recover (manikin_i2c_inst_t i2c_inst)
 {
     /* Enable power to the sensors */
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+    if(i2c_inst == I2C2) {
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, 1);
+    } else {
+
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
+    }
+
     return 0;
 }

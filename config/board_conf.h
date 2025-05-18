@@ -12,7 +12,7 @@
 /**
  * CAN Configuration
  */
-#define BOARD_CONF_CAN_SPEED    875000
+#define BOARD_CONF_CAN_SPEED    500000
 #define BOARD_CONF_CAN_INSTANCE CAN1
 
 #define BOARD_CONF_CAN_GPIO_CLK_EN() __HAL_RCC_GPIOB_CLK_ENABLE()
@@ -86,8 +86,8 @@
  * Sensor 1 configuration
  */
 #if BOARD_CONF_USE_SENSOR1
-#define BOARD_CONF_SENSOR1_RESET_PORT       GPIOB
-#define BOARD_CONF_SENSOR1_RESET_PIN        GPIO_PIN_1
+#define BOARD_CONF_SENSOR1_RESET_PORT       GPIOA
+#define BOARD_CONF_SENSOR1_RESET_PIN        GPIO_PIN_9
 #define BOARD_CONF_SENSOR1_ADDR             0x29
 #define BOARD_CONF_SENSOR1_SAMPLE_RATE_HZ   100
 #define BOARD_CONF_SENSOR1_INIT(sensor_ctx) vl6180x_init_sensor(sensor_ctx)
@@ -100,6 +100,8 @@
  * Sensor 2 configuration
  */
 #if BOARD_CONF_USE_SENSOR2
+#define BOARD_CONF_SENSOR2_RESET_PORT       GPIOA
+#define BOARD_CONF_SENSOR2_RESET_PIN        GPIO_PIN_10
 #define BOARD_CONF_SENSOR2_ADDR             0x10
 #define BOARD_CONF_SENSOR2_SAMPLE_RATE_HZ   50
 #define BOARD_CONF_SENSOR2_INIT(sensor_ctx) ads7138_init_sensor(sensor_ctx)

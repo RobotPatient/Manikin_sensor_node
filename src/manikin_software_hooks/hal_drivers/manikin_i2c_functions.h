@@ -22,7 +22,7 @@ int i2c_hal_deinit(manikin_i2c_inst_t i2c_inst);
 
 int i2c_hal_bus_reset(manikin_i2c_inst_t i2c_inst);
 
-int i2c_hal_bus_recover();
+int i2c_hal_bus_recover(manikin_i2c_inst_t i2c_inst);
 
 uint32_t i2c_hal_get_baud(manikin_i2c_inst_t i2c_inst);
 

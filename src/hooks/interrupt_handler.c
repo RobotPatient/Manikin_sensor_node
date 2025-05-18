@@ -19,6 +19,7 @@
 #include "interrupt_handler.h"
 /* External variables --------------------------------------------------------*/
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
+extern CAN_HandleTypeDef can_handle;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -235,4 +236,9 @@ void DMA1_Stream5_IRQHandler(void)
 void SPI3_IRQHandler(void)
 {
   HAL_SPI_IRQHandler(&spi1_handle);
+}
+
+void CAN1_RX0_IRQHandler(void)
+{
+    HAL_CAN_IRQHandler(&can_handle);
 }

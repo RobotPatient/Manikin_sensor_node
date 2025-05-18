@@ -10,51 +10,34 @@
 #include "can_wrapper.h"
 #include "cli.h"
 #include "SEGGER_RTT.h"
+#include "stm32f4xx_hal_gpio.h"
+#include "isotp.h"
 
-void
-background_transmit_task (uint8_t *read_buf1, uint8_t *read_buf2)
-{
-    uint16_t temp[8];
-    uint8_t  streambuffer[128];
-    for (int i = 0; i < 8; i++)
-    {
-        temp[i] = ((uint16_t)read_buf2[2 * i] << 8) | read_buf2[2 * i + 1];
-    }
-    size_t len = snprintf((char *)streambuffer,
-                          sizeof(streambuffer),
-                          "\r[0]: %d\n",
-                          read_buf1[0]);
-    CDC_Transmit_FS(streambuffer, len);
-    len = snprintf((char *)streambuffer,
-                   sizeof(streambuffer),
-                   "\r[0]: %d [1]: %d [2]: %d [3]: %d [4]: %d"
-                   "[5]: %d [6]: %d [7]: %d\n",
-                   temp[0],
-                   temp[1],
-                   temp[2],
-                   temp[3],
-                   temp[4],
-                   temp[5],
-                   temp[6],
-                   temp[7]);
-    CDC_Transmit_FS(streambuffer, len);
-    HAL_GPIO_TogglePin(BOARD_CONF_LED_PORT, BOARD_CONF_LED_PIN);
-}
+IsoTpLink g_link;
+
+/* Alloc send and receive buffer statically in RAM */
+static uint8_t g_isotpRecvBuf[128];
+static uint8_t g_isotpSendBuf[128];
 
 int
 main (void)
 {
-    HAL_Init();
     SystemClock_Config();
+    HAL_Init();
     BOARD_GPIO_Init();
     SEGGER_RTT_Init();
+    manikin_cli_init();
     MX_USB_DEVICE_Init();
 
     init_spi_flash_memory();
     init_peripherals_for_sensors();
     HAL_Delay(1);
-    // init_can();
-
+    init_can();
+    isotp_init_link(&g_link, 0x080,
+        g_isotpSendBuf, sizeof(g_isotpSendBuf), 
+        g_isotpRecvBuf, sizeof(g_isotpRecvBuf));
+    start_sensor_sampling();
+ 
     uint8_t  read_buf[16];
     uint8_t  read_buf2[16];
     uint16_t count = 0;
@@ -62,16 +45,17 @@ main (void)
     {
         check_and_sample_sensor1(read_buf);
         check_and_sample_sensor2(read_buf2);
-        if (count < 10)
+        if (count < 2)
         {
             count++;
         }
         else
         {
-            // can_phy_transmit(0, read_buf, 1);
-            background_transmit_task(read_buf, read_buf2);
+            print_to_can();
+            print_to_stdout();
             count = 0;
         }
+        isotp_poll(&g_link);
         __WFI();
     }
 }

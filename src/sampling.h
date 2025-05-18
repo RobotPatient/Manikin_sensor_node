@@ -33,6 +33,11 @@ extern "C"
      */
     manikin_status_t check_and_sample_sensor3(uint8_t *data_buf);
 
+    manikin_status_t start_sensor_sampling();
+
+    manikin_status_t print_to_stdout();
+
+    manikin_status_t print_to_can();
 #ifdef __cplusplus
 }
 #endif

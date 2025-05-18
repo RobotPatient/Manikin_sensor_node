@@ -1,147 +1,178 @@
 #include "can_wrapper.h"
 #include <stdio.h>
+#include <stdarg.h>
+#include "SEGGER_RTT.h"
 #include "board_conf.h"
 #include "common/manikin_types.h"
+
 #include "stm32f405xx.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_can.h"
 #include "stm32f4xx_hal_gpio.h"
 #include "stm32f4xx_hal_gpio_ex.h"
 
-CAN_HandleTypeDef can_handle;
-CAN_FilterTypeDef can_filter;
+#include "isotp.h"
 
-CAN_RxHeaderTypeDef RxHeader;
-uint32_t            TxMailbox;
+extern IsoTpLink g_link;
 
+/* Static CAN handle structures */
+CAN_HandleTypeDef          can_handle;
+static CAN_FilterTypeDef   can_filter;
+static CAN_RxHeaderTypeDef rx_header;
+static uint32_t            tx_mailbox;
+
+/* Initialize CAN peripheral */
 int
 can_phy_hal_init_can_mcu (const uint32_t speed)
 {
-    can_handle.Instance                  = BOARD_CONF_CAN_INSTANCE;
-    can_handle.Init.Prescaler            = 6;
+    (void)speed; /* Speed is not yet used */
+
+    can_handle.Instance = BOARD_CONF_CAN_INSTANCE;
+
     can_handle.Init.Mode                 = CAN_MODE_NORMAL;
+    can_handle.Init.Prescaler            = 6;
     can_handle.Init.SyncJumpWidth        = CAN_SJW_1TQ;
-    can_handle.Init.TimeSeg1             = CAN_BS1_4TQ;
-    can_handle.Init.TimeSeg2             = CAN_BS2_3TQ;
+    can_handle.Init.TimeSeg1             = CAN_BS1_11TQ;
+    can_handle.Init.TimeSeg2             = CAN_BS2_2TQ;
     can_handle.Init.TimeTriggeredMode    = DISABLE;
     can_handle.Init.AutoBusOff           = DISABLE;
     can_handle.Init.AutoWakeUp           = DISABLE;
     can_handle.Init.AutoRetransmission   = DISABLE;
     can_handle.Init.ReceiveFifoLocked    = DISABLE;
     can_handle.Init.TransmitFifoPriority = DISABLE;
+
     if (HAL_CAN_Init(&can_handle) != HAL_OK)
     {
         return 1;
     }
 
-    if (HAL_CAN_Start(&(can_handle)) != HAL_OK)
+    if (HAL_CAN_Start(&can_handle) != HAL_OK)
     {
         return 1;
     }
+
     return 0;
 }
 
+/* Configure CAN message filter */
 int
-can_phy_hal_set_filter ()
+can_phy_hal_set_filter (void)
 {
+    can_filter.FilterMode           = CAN_FILTERMODE_IDMASK;
+    can_filter.FilterScale          = CAN_FILTERSCALE_32BIT;
+    can_filter.FilterIdHigh         = 0x0000;
+    can_filter.FilterIdLow          = 0x0000;
+    can_filter.FilterMaskIdHigh     = 0x0000;
+    can_filter.FilterMaskIdLow      = 0x0000; /* Accept all IDs */
+    can_filter.FilterFIFOAssignment = CAN_RX_FIFO0;
+    can_filter.FilterActivation     = ENABLE;
 
-    // configs[can_num].can_filter.FilterBank           = 0;
-    // configs[can_num].can_filter.FilterMode           = CAN_FILTERMODE_IDLIST;
-    // configs[can_num].can_filter.FilterScale          = CAN_FILTERSCALE_32BIT;
+    if (HAL_CAN_ConfigFilter(&can_handle, &can_filter) != HAL_OK)
+    {
+        return 1;
+    }
 
-    // // Accept exactly ID 0 and ID 1 (Standard IDs shifted left by 5 bits)
+    HAL_CAN_ActivateNotification(&can_handle, CAN_IT_RX_FIFO0_MSG_PENDING);
+    HAL_NVIC_SetPriority(CAN1_RX0_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(CAN1_RX0_IRQn);
 
-    // configs[can_num].can_filter.FilterIdHigh         = 0x0000; // ID 0 << 5
-    // configs[can_num].can_filter.FilterIdLow          = 0x0020; // ID 1 << 5
-
-    // // In IDLIST mode, FilterMask fields are used to specify second pair of
-    // IDs (only if 32bit scale) configs[can_num].can_filter.FilterMaskIdHigh =
-    // 0x0000; // Not used configs[can_num].can_filter.FilterMaskIdLow      =
-    // 0x0000; // Not used
-
-    // configs[can_num].can_filter.FilterFIFOAssignment = CAN_RX_FIFO0;
-    // configs[can_num].can_filter.FilterActivation     = ENABLE;
-
-    // HAL_CAN_ActivateNotification(&(configs[can_num].can_handle),
-    // CAN_IT_RX_FIFO0_MSG_PENDING);
-
-    // if (HAL_CAN_ConfigFilter(&(configs[can_num].can_handle),
-    //                          &(configs[can_num].can_filter))
-    //     != HAL_OK)
-    // {
-    //     return 1;
-    // }
     return 0;
 }
 
+/* CAN RX FIFO0 message pending callback */
 void
 HAL_CAN_RxFifo0MsgPendingCallback (CAN_HandleTypeDef *hcan)
 {
-    CAN_RxHeaderTypeDef rxHeader;
-    uint8_t             rxData[8];
+    uint8_t rx_data[8];
 
-    // Read the message
-    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, rxData) == HAL_OK)
+    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data) == HAL_OK)
     {
-        // Process received CAN message
-        // Example: print ID and data
-        printf("Received CAN ID: 0x%03X DLC: %d Data: ",
-               (uint16_t)rxHeader.StdId,
-               (uint16_t)rxHeader.DLC);
-        for (int i = 0; i < rxHeader.DLC; i++)
+        if (rx_header.StdId == 0x180U)
         {
-            printf("%02X ", rxData[i]);
+            isotp_on_can_message(&g_link, rx_data, rx_header.DLC);
         }
-        printf("\n");
     }
 }
 
-void
-can_phy_enable_can (uint32_t baudrate)
-{
-}
-
-void
-can_phy_reset_can (void)
-{
-    HAL_CAN_Init(&can_handle);
-    HAL_CAN_Start(&can_handle);
-}
-
-void
-can_phy_close_can (void)
-{
-    HAL_CAN_Stop(&can_handle);
-}
-
+/* Transmit CAN frame */
 size_t
-can_phy_transmit (uint8_t *data, size_t len)
+can_phy_transmit (uint32_t arb_id, uint8_t *data, size_t len)
 {
-    CAN_TxHeaderTypeDef TxHeader;
-    TxHeader.DLC   = len; // Data length
-    TxHeader.IDE   = CAN_ID_STD;
-    TxHeader.RTR   = CAN_RTR_DATA;
-    TxHeader.StdId = 0x321; // Standard ID
+    CAN_TxHeaderTypeDef tx_header;
 
-    if (HAL_CAN_AddTxMessage(&can_handle, &TxHeader, data, &TxMailbox)
+    tx_header.StdId = arb_id;
+    tx_header.IDE   = CAN_ID_STD;
+    tx_header.RTR   = CAN_RTR_DATA;
+    tx_header.DLC   = (uint8_t)len;
+
+    if (HAL_CAN_AddTxMessage(&can_handle, &tx_header, data, &tx_mailbox)
         != HAL_OK)
     {
         return 1;
     }
+
+    while (HAL_CAN_IsTxMessagePending(&can_handle, tx_mailbox) != 0U)
+    {
+        /* Wait until the message is sent */
+    }
+
     return len;
 }
 
+/* ISO-TP transport layer: Send CAN message */
+int
+isotp_user_send_can (const uint32_t arbitration_id,
+                     const uint8_t *data,
+                     const uint8_t  size)
+{
+    if ((data == NULL) || (size > 8U))
+    {
+        return -1;
+    }
+
+    size_t sent = can_phy_transmit(arbitration_id, (uint8_t *)data, size);
+
+    return (sent == size) ? 0 : -1;
+}
+
+/* Return current time in microseconds */
+uint32_t
+isotp_user_get_us (void)
+{
+    return HAL_GetTick() * 1000U;
+}
+
+/* Print debug message to RTT */
+void
+isotp_user_debug (const char *message, ...)
+{
+    char    buffer[128];
+    va_list args;
+
+    va_start(args, message);
+    vsnprintf(buffer, sizeof(buffer), message, args);
+    va_end(args);
+
+    SEGGER_RTT_WriteString(0, buffer);
+    SEGGER_RTT_WriteString(0, "\n");
+}
+
+/* Initialize CAN pins */
 manikin_status_t
-init_can_pins ()
+init_can_pins (void)
 {
     GPIO_InitTypeDef can_gpio;
-    can_gpio.Mode      = GPIO_MODE_AF_PP;
+
+    can_gpio.Mode  = GPIO_MODE_AF_PP;
+    can_gpio.Pull  = GPIO_NOPULL;
+    can_gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+
+    /* Configure RX pin */
     can_gpio.Pin       = BOARD_CONF_CAN_RX_PIN;
-    can_gpio.Pull      = GPIO_NOPULL;
-    can_gpio.Speed     = GPIO_SPEED_FREQ_HIGH;
     can_gpio.Alternate = BOARD_CONF_CAN_RX_PIN_MUX;
     HAL_GPIO_Init(BOARD_CONF_CAN_RX_PORT, &can_gpio);
 
+    /* Configure TX pin */
     can_gpio.Pin       = BOARD_CONF_CAN_TX_PIN;
     can_gpio.Alternate = BOARD_CONF_CAN_TX_PIN_MUX;
     HAL_GPIO_Init(BOARD_CONF_CAN_TX_PORT, &can_gpio);
@@ -149,13 +180,30 @@ init_can_pins ()
     return MANIKIN_STATUS_OK;
 }
 
+/* Full CAN initialization */
 void
-init_can ()
+init_can (void)
 {
     BOARD_CONF_CAN_GPIO_CLK_EN();
     BOARD_CONF_CAN_CLK_EN();
 
-    init_can_pins();
+    (void)init_can_pins();
 
-    can_phy_hal_init_can_mcu(BOARD_CONF_CAN_SPEED);
+    (void)can_phy_hal_init_can_mcu(BOARD_CONF_CAN_SPEED);
+    (void)can_phy_hal_set_filter();
+}
+
+/* Reset CAN peripheral */
+void
+can_phy_reset_can (void)
+{
+    (void)HAL_CAN_Init(&can_handle);
+    (void)HAL_CAN_Start(&can_handle);
+}
+
+/* Stop CAN peripheral */
+void
+can_phy_close_can (void)
+{
+    (void)HAL_CAN_Stop(&can_handle);
 }

@@ -1,15 +1,36 @@
 #include <manikin_timer_functions.h>
 #include <stm32f4xx_hal.h>
+#include <stm32f4xx_hal_tim.h>
+#include <system_stm32f4xx.h>
+
+void compute_freq(TIM_HandleTypeDef *tim, int wanted_freq){
+    uint32_t TIM_CLK = 168000000; // 168 MHz
+    uint32_t prescaler = 0;
+    uint32_t period = 0;
+
+    for (prescaler = 0; prescaler < 0xFFFF; prescaler++) {
+        uint32_t tmp_period = TIM_CLK / ((prescaler + 1) * wanted_freq);
+        if (tmp_period > 0)
+            tmp_period -= 1;
+
+        if (tmp_period <= 0xFFFF) {
+            period = tmp_period;
+            break;
+        }
+    }
+
+    // Assign values to timer init structure
+    tim->Init.Prescaler = prescaler;
+    tim->Init.Period = period;
+}
 
 int
 timer_hal_init (manikin_timer_inst_t timer_inst, uint32_t freq)
 {
     TIM_HandleTypeDef timer_handle;
-    uint32_t timer_period    = (uint32_t)(SystemCoreClock / (freq * 2)) - 1;
+    compute_freq(&timer_handle,2*freq);
     timer_handle.Instance    = timer_inst;
-    timer_handle.Init.Period = timer_period;
     timer_handle.Init.RepetitionCounter = 0;
-    timer_handle.Init.Prescaler         = 0;
     timer_handle.Init.ClockDivision     = 0;
     timer_handle.Init.CounterMode       = TIM_COUNTERMODE_UP;
     timer_handle.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;

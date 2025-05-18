@@ -16,7 +16,7 @@ extern "C"
      * @param data Pointer to the write-buffer
      * @param len The number of bytes to write
      */
-    size_t can_phy_transmit(uint8_t *data, size_t len);
+    size_t can_phy_transmit(uint32_t arb_id, uint8_t *data, size_t len);
 #ifdef __cplusplus
 }
 #endif
