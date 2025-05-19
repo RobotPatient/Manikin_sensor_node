@@ -12,8 +12,24 @@
 #include "stm32f4xx_hal_gpio_ex.h"
 
 #include "isotp.h"
+#include "../session_mgmt/session_mgmt.h"
 
 extern IsoTpLink g_link;
+extern IsoTpLink g_link2;
+extern IsoTpLink comm_link;
+
+/* Alloc send and receive buffer statically in RAM */
+static uint8_t g_isotpRecvBuf[128];
+static uint8_t g_isotpSendBuf[128];
+
+/* Alloc send and receive buffer statically in RAM */
+static uint8_t g_isotpRecvBuf2[128];
+static uint8_t g_isotpSendBuf2[128];
+
+
+/* Alloc send and receive buffer statically in RAM */
+uint8_t g_isotpRecvBuf3[128];
+uint8_t g_isotpSendBuf3[128];
 
 /* Static CAN handle structures */
 CAN_HandleTypeDef          can_handle;
@@ -87,9 +103,15 @@ HAL_CAN_RxFifo0MsgPendingCallback (CAN_HandleTypeDef *hcan)
 
     if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data) == HAL_OK)
     {
-        if (rx_header.StdId == 0x180U)
+        if (rx_header.StdId == BOARD_CONF_CAN_SENSOR1_RX_ID)
         {
             isotp_on_can_message(&g_link, rx_data, rx_header.DLC);
+        } else if(rx_header.StdId == BOARD_CONF_CAN_SENSOR2_RX_ID) {
+            isotp_on_can_message(&g_link2, rx_data, rx_header.DLC);
+        } else if(rx_header.StdId == BOARD_CONF_CAN_STATUS_RX_ID) {
+            isotp_on_can_message(&comm_link,rx_data, rx_header.DLC);
+        } else if(rx_header.StdId == BOARD_CONF_CAN_GLOBAL_BRDCAST_RX_ID) {
+            session_mgmt_on_global_can_msg(rx_data, rx_header.DLC);
         }
     }
 }
@@ -191,6 +213,17 @@ init_can (void)
 
     (void)can_phy_hal_init_can_mcu(BOARD_CONF_CAN_SPEED);
     (void)can_phy_hal_set_filter();
+    isotp_init_link(&g_link, BOARD_CONF_CAN_SENSOR1_TX_ID,
+        g_isotpSendBuf, sizeof(g_isotpSendBuf), 
+        g_isotpRecvBuf, sizeof(g_isotpRecvBuf));
+    
+    isotp_init_link(&g_link2, BOARD_CONF_CAN_SENSOR2_TX_ID,
+            g_isotpSendBuf2, sizeof(g_isotpSendBuf2), 
+            g_isotpRecvBuf2, sizeof(g_isotpRecvBuf2));
+ 
+    isotp_init_link(&comm_link, BOARD_CONF_CAN_STATUS_TX_ID,
+                g_isotpSendBuf3, sizeof(g_isotpSendBuf3), 
+                g_isotpRecvBuf3, sizeof(g_isotpRecvBuf3));
 }
 
 /* Reset CAN peripheral */

@@ -14,9 +14,11 @@
 #include "usbd_cdc_if.h"
 #include "can_wrapper.h"
 #include "isotp.h"
+#include "vl6180x/vl6180x.h"
 
 /* External ISO-TP link */
 extern IsoTpLink g_link;
+extern IsoTpLink g_link2;
 
 /* Sensor sample flags */
 volatile uint8_t sensor_timer_1_trigger;
@@ -34,11 +36,12 @@ static sample_timer_ctx_t timer1_ctx;
 static sample_timer_ctx_t timer2_ctx;
 
 /* Sample counters */
-static size_t sensor1_sample_id = 0;
-static size_t sensor2_sample_id = 0;
+size_t sensor1_sample_id = 0;
+size_t sensor2_sample_id = 0;
 #if BOARD_CONF_USE_SENSOR3
-static size_t sensor3_sample_id = 0;
+size_t sensor3_sample_id = 0;
 #endif
+
 /* Buffers */
 static lwrb_t buff;
 static uint8_t buff_data[1024];
@@ -50,12 +53,21 @@ static lwrb_t can_buff;
 static uint8_t can_buff_data[512];
 static uint8_t can_out_data[128];
 
+static lwrb_t can_buff2;
+static uint8_t can_buff2_data[512];
+static uint8_t can_out2_data[128];
 /* CAN data packaging */
-typedef struct {
+typedef struct __attribute__((__packed__)) {
     char sensor_name[8];
     uint32_t frame_id;
-    uint8_t data[16];
-} can_sample_t;
+    BOARD_CONF_SENSOR1_SAMPLE_T data;
+} sample_sensor1_t;
+
+typedef struct __attribute__((__packed__)) {
+    char sensor_name[8];
+    uint32_t frame_id;
+    BOARD_CONF_SENSOR2_SAMPLE_T data;
+} sample_sensor2_t;
 
 /* Timer interrupt handler */
 void
@@ -201,12 +213,29 @@ start_sensor_sampling(void)
     return MANIKIN_STATUS_OK;
 }
 
+manikin_status_t
+stop_sensor_sampling(void)
+{
+    manikin_status_t status;
+
+    status = sample_timer_stop(&timer1_ctx);
+    MANIKIN_ASSERT(0x01, status == MANIKIN_STATUS_OK, MANIKIN_STATUS_ERR_SENSOR_INIT_FAIL);
+
+#if BOARD_CONF_USE_SENSOR2
+    status = sample_timer_stop(&timer2_ctx);
+    MANIKIN_ASSERT(0x01, status == MANIKIN_STATUS_OK, MANIKIN_STATUS_ERR_SENSOR_INIT_FAIL);
+#endif
+
+    return MANIKIN_STATUS_OK;
+}
+
 /* Peripheral and sensor initialization */
 manikin_status_t
 init_peripherals_for_sensors(void)
 {
     lwrb_init(&buff, buff_data, sizeof(buff_data));
     lwrb_init(&can_buff, can_buff_data, sizeof(can_buff_data));
+    lwrb_init(&can_buff2, can_buff2_data, sizeof(can_buff2_data));
 
 #if BOARD_CONF_USE_SENSOR1
     __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -231,6 +260,8 @@ init_peripherals_for_sensors(void)
 manikin_status_t
 check_and_sample_sensor1(uint8_t *data_buf)
 {
+    sample_sensor1_t sample;
+    memcpy(sample.sensor_name, BOARD_CONF_SENSOR1_NAME, sizeof(BOARD_CONF_SENSOR1_NAME));
     if (sensor_timer_1_trigger) {
         manikin_status_t status = sample_timer_start_cb_handler(&timer1_ctx, &sensor1_ctx);
         if (status == MANIKIN_STATUS_OK) {
@@ -240,16 +271,14 @@ check_and_sample_sensor1(uint8_t *data_buf)
 
                 __disable_irq();
                 size_t len = manikin_cli_on_new_sensor_sample(
-                    cbor_buff, sizeof(cbor_buff), "vl6180x",
+                    cbor_buff, sizeof(cbor_buff), BOARD_CONF_SENSOR1_NAME,
                     sensor1_sample_id, data_buf, 1);
 
                 lwrb_write(&buff, cbor_buff, len);
-
-                can_sample_t sample;
-                memcpy(sample.sensor_name, "vl6180x", sizeof("vl6180x"));
-                memcpy(sample.data, data_buf, 1);
+                
+                BOARD_CONF_SENSOR1_SAMPLE_PARSE(data_buf, &(sample.data));
                 sample.frame_id = sensor1_sample_id;
-                lwrb_write(&can_buff, &sample, sizeof(can_sample_t));
+                lwrb_write(&can_buff, &sample, sizeof(sample_sensor1_t));
                 __enable_irq();
             }
         }
@@ -265,6 +294,7 @@ check_and_sample_sensor1(uint8_t *data_buf)
 manikin_status_t
 check_and_sample_sensor2(uint8_t *data_buf)
 {
+    sample_sensor2_t sample;
     if (sensor_timer_2_trigger) {
         manikin_status_t status = sample_timer_start_cb_handler(&timer2_ctx, &sensor2_ctx);
         if (status == MANIKIN_STATUS_OK) {
@@ -274,9 +304,12 @@ check_and_sample_sensor2(uint8_t *data_buf)
 
                 __disable_irq();
                 size_t len = manikin_cli_on_new_sensor_sample(
-                    cbor_buff, sizeof(cbor_buff), "ADS7138",
+                    cbor_buff, sizeof(cbor_buff), BOARD_CONF_SENSOR2_NAME,
                     sensor2_sample_id, data_buf, 16);
-
+                
+                BOARD_CONF_SENSOR2_SAMPLE_PARSE(data_buf, &(sample.data));
+                sample.frame_id = sensor2_sample_id;
+                lwrb_write(&can_buff2, &sample, sizeof(sample_sensor2_t));
                 lwrb_write(&buff, cbor_buff, len);
                 __enable_irq();
             }
@@ -314,9 +347,13 @@ print_to_can(const char *sensor_id, uint8_t *data_buf, size_t buffer_size)
     (void)data_buf;
     (void)buffer_size;
 
-    uint32_t len = lwrb_read(&can_buff, can_out_data, sizeof(can_sample_t));
+    uint32_t len = lwrb_read(&can_buff, can_out_data, sizeof(sample_sensor1_t));
     if (len != 0U) {
         (void)isotp_send(&g_link, can_out_data, len);
+    }
+    len = lwrb_read(&can_buff2, can_out2_data, sizeof(sample_sensor2_t));
+    if (len != 0U) {
+        (void)isotp_send(&g_link2, can_out2_data, len);
     }
 
     return MANIKIN_STATUS_OK;

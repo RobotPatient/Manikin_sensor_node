@@ -145,6 +145,7 @@ add_executable(${PROJECT_NAME} src/main.cpp
                                src/sampling.c 
                                src/flash/flash.c 
                                src/can/can_wrapper.c
+                               src/session_mgmt/session_mgmt.c
                                lib/RTT/RTT/SEGGER_RTT.c 
                                lib/RTT/RTT/SEGGER_RTT_printf.c 
                                lib/RTT/Syscalls/SEGGER_RTT_Syscalls_GCC.c)

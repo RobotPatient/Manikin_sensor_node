@@ -9,6 +9,8 @@
 #include "vl6180x/vl6180x.h"
 #include "ads7138/ads7138.h"
 
+#define BOARD_CONF_SENSORHUB_ID 1U
+
 /**
  * CAN Configuration
  */
@@ -26,7 +28,15 @@
 
 #define BOARD_CONF_CAN_CLK_EN() __HAL_RCC_CAN1_CLK_ENABLE()
 
+#define BOARD_CONF_CAN_SENSOR1_TX_ID  0x080
+#define BOARD_CONF_CAN_SENSOR1_RX_ID  0x180U
+#define BOARD_CONF_CAN_SENSOR2_TX_ID  0x01U
+#define BOARD_CONF_CAN_SENSOR2_RX_ID  0x101U
 
+#define BOARD_CONF_CAN_STATUS_TX_ID  0x10U
+#define BOARD_CONF_CAN_STATUS_RX_ID  0x201U
+
+#define BOARD_CONF_CAN_GLOBAL_BRDCAST_RX_ID  0x0U
 /**
  * I2C Configuration
  */
@@ -86,6 +96,7 @@
  * Sensor 1 configuration
  */
 #if BOARD_CONF_USE_SENSOR1
+#define BOARD_CONF_SENSOR1_NAME             "vl6180"
 #define BOARD_CONF_SENSOR1_RESET_PORT       GPIOA
 #define BOARD_CONF_SENSOR1_RESET_PIN        GPIO_PIN_9
 #define BOARD_CONF_SENSOR1_ADDR             0x29
@@ -94,12 +105,15 @@
 #define BOARD_CONF_SENSOR1_SAMPLE(sensor_ctx, read_buf) \
     vl6180x_read_sensor(sensor_ctx, read_buf)
 #define BOARD_CONF_SENSOR1_DEINIT(sensor_ctx) vl6180x_deinit_sensor(sensor_ctx)
+#define BOARD_CONF_SENSOR1_SAMPLE_T vl6180x_sample_data_t
+#define BOARD_CONF_SENSOR1_SAMPLE_PARSE(read_buf, sample_data) vl6180x_parse_raw_data(read_buf, sample_data)
 #endif // BOARD_CONF_USE_SENSOR1
 
 /**
  * Sensor 2 configuration
  */
 #if BOARD_CONF_USE_SENSOR2
+#define BOARD_CONF_SENSOR2_NAME             "ads7138"
 #define BOARD_CONF_SENSOR2_RESET_PORT       GPIOA
 #define BOARD_CONF_SENSOR2_RESET_PIN        GPIO_PIN_10
 #define BOARD_CONF_SENSOR2_ADDR             0x10
@@ -108,6 +122,8 @@
 #define BOARD_CONF_SENSOR2_SAMPLE(sensor_ctx, read_buf) \
     ads7138_read_sensor(sensor_ctx, read_buf)
 #define BOARD_CONF_SENSOR2_DEINIT(sensor_ctx) ads7138_deinit_sensor(sensor_ctx)
+#define BOARD_CONF_SENSOR2_SAMPLE_T ads7138_sample_data_t
+#define BOARD_CONF_SENSOR2_SAMPLE_PARSE(read_buf, sample_data) ads7138_parse_raw_data(read_buf, sample_data)
 #endif // BOARD_CONF_USE_SENSOR2
 
 /**
@@ -120,6 +136,8 @@
  #define BOARD_CONF_SENSOR3_SAMPLE(sensor_ctx, read_buf) \
      ads7138_read_sensor(sensor_ctx, read_buf)
  #define BOARD_CONF_SENSOR3_DEINIT(sensor_ctx) ads7138_deinit_sensor(sensor_ctx)
+ #define BOARD_CONF_SENSOR3_SAMPLE_T ads7138_sample_data_t
+ #define BOARD_CONF_SENSOR3_SAMPLE_PARSE(read_buf, sample_data) ads7138_parse_raw_data(read_buf, sample_data)
  #endif // BOARD_CONF_USE_SENSOR3
 
 /**
