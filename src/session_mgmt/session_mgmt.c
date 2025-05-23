@@ -100,7 +100,7 @@ session_mgmt_on_global_can_msg (uint8_t *msg, const size_t dlc)
             start_sensor_sampling();
             system_status.state = SYSTEM_STATE_SAMPLING;
         }
-        else if (msg[0] == SYSTEM_CMD_STOP)
+        else if (msg[0] == 120)
         {
             stop_sensor_sampling();
             system_status.state = SYSTEM_STATE_INIT;
