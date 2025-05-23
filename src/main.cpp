@@ -17,6 +17,7 @@
 
 IsoTpLink g_link;
 IsoTpLink g_link2;
+IsoTpLink g_link3;
 IsoTpLink comm_link;
 
 int
@@ -36,6 +37,7 @@ main (void)
     // start_sensor_sampling();
     uint8_t  read_buf[16];
     uint8_t  read_buf2[16];
+    uint8_t  read_buf3[50];
     uint8_t  comm_buf[128];
     uint32_t recv_size;
     uint16_t count = 0;
@@ -51,6 +53,7 @@ main (void)
         }
         check_and_sample_sensor1(read_buf);
         check_and_sample_sensor2(read_buf2);
+        check_and_sample_sensor3(read_buf3);
         if (count < 5)
         {
             count++;
@@ -63,6 +66,7 @@ main (void)
         }
         isotp_poll(&g_link);
         isotp_poll(&g_link2);
+        isotp_poll(&g_link3);
         isotp_poll(&comm_link);
         __WFI();
     }

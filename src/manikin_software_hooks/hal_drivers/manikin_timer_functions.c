@@ -5,6 +5,7 @@
 
 static TIM_HandleTypeDef timer2_handle;
 static TIM_HandleTypeDef timer3_handle;
+static TIM_HandleTypeDef timer4_handle;
 
 void compute_freq(TIM_HandleTypeDef *tim, int wanted_freq){
     uint32_t TIM_CLK = 168000000; // 168 MHz
@@ -33,8 +34,10 @@ timer_hal_init (manikin_timer_inst_t timer_inst, uint32_t freq)
     TIM_HandleTypeDef *timer_handle;
     if(timer_inst == TIM3) {
         timer_handle = &timer3_handle;
-    } else {
+    } else if (timer_inst == TIM2) {
         timer_handle = &timer2_handle;
+    } else {
+        timer_handle = &timer4_handle;
     }
 
     compute_freq(timer_handle,2*freq);
@@ -52,6 +55,9 @@ timer_hal_init (manikin_timer_inst_t timer_inst, uint32_t freq)
     {
         NVIC_EnableIRQ(TIM3_IRQn);
         NVIC_SetPriority(TIM3_IRQn, 0);
+    } else {
+        NVIC_EnableIRQ(TIM4_IRQn);
+        NVIC_SetPriority(TIM4_IRQn, 0);
     }
     if (HAL_TIM_Base_Init(timer_handle) != HAL_OK)
     {
@@ -66,8 +72,10 @@ timer_hal_start (manikin_timer_inst_t timer_inst)
     TIM_HandleTypeDef *timer_handle;
     if(timer_inst == TIM3) {
         timer_handle = &timer3_handle;
-    } else {
+    } else if (timer_inst == TIM2) {
         timer_handle = &timer2_handle;
+    } else {
+        timer_handle = &timer4_handle;
     }
     timer_inst->DIER |= TIM_DIER_UIE;
     timer_inst->SR |= TIM_CR1_CEN;
@@ -81,8 +89,10 @@ timer_hal_stop (manikin_timer_inst_t timer_inst)
     TIM_HandleTypeDef *timer_handle;
     if(timer_inst == TIM3) {
         timer_handle = &timer3_handle;
-    } else {
+    } else if (timer_inst == TIM2) {
         timer_handle = &timer2_handle;
+    } else {
+        timer_handle = &timer4_handle;
     }
     timer_handle->Instance = timer_inst;
     timer_inst->SR &= ~TIM_CR1_CEN;

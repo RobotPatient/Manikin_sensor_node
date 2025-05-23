@@ -211,6 +211,14 @@ void TIM3_IRQHandler(void)
   }
   TIM3->SR = ~TIM_IT_UPDATE;
 }
+void TIM4_IRQHandler(void) 
+{
+  if((TIM4->SR & TIM_FLAG_UPDATE)) {
+    sample_irq(TIM4);
+    TIM4->CR1 |= TIM_CR1_CEN;
+  }
+  TIM4->SR = ~TIM_IT_UPDATE;
+}
 
 void DMA1_Stream0_IRQHandler(void)
 {
