@@ -76,22 +76,35 @@ can_phy_hal_set_filter (void)
 {
     can_filter.FilterMode           = CAN_FILTERMODE_IDMASK;
     can_filter.FilterScale          = CAN_FILTERSCALE_32BIT;
-    can_filter.FilterIdHigh         = 0x0000;
-    can_filter.FilterIdLow          = 0x0000;
-    can_filter.FilterMaskIdHigh     = 0x0000;
-    can_filter.FilterMaskIdLow      = 0x0000; /* Accept all IDs */
     can_filter.FilterFIFOAssignment = CAN_RX_FIFO0;
     can_filter.FilterActivation     = ENABLE;
+    // List of IDs you want to receive
+    uint16_t ids[] = {BOARD_CONF_CAN_SENSOR1_RX_ID, BOARD_CONF_CAN_SENSOR2_RX_ID, BOARD_CONF_CAN_STATUS_RX_ID};
+    uint8_t num_ids = sizeof(ids) / sizeof(ids[0]);
 
-    if (HAL_CAN_ConfigFilter(&can_handle, &can_filter) != HAL_OK)
+    for (uint8_t i = 0; i < num_ids; ++i)
     {
-        return 1;
-    }
+        uint32_t std_id = ids[i] << 5;  // Shift to align with CAN register format
 
+        can_filter.FilterBank = i;                          // One filter per ID
+        can_filter.FilterMode = CAN_FILTERMODE_IDLIST;
+        can_filter.FilterFIFOAssignment = CAN_RX_FIFO0;
+        can_filter.FilterActivation = ENABLE;
+
+        // Put only this ID into the filter (others zeroed)
+        can_filter.FilterIdHigh     = (std_id << 5);
+        can_filter.FilterIdLow      = 0;
+        can_filter.FilterMaskIdHigh = std_id;
+        can_filter.FilterMaskIdLow  = 0x0000;
+
+        if (HAL_CAN_ConfigFilter(&can_handle, &can_filter) != HAL_OK)
+        {
+            return 1;  // Error
+        }
+    }
     HAL_CAN_ActivateNotification(&can_handle, CAN_IT_RX_FIFO0_MSG_PENDING);
     HAL_NVIC_SetPriority(CAN1_RX0_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(CAN1_RX0_IRQn);
-
     return 0;
 }
 

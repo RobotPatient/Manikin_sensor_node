@@ -15,7 +15,7 @@
 #include "can_wrapper.h"
 #include "isotp.h"
 #include "vl6180x/vl6180x.h"
-
+#include "SEGGER_RTT.h"
 /* External ISO-TP link */
 extern IsoTpLink g_link;
 extern IsoTpLink g_link2;
@@ -62,13 +62,13 @@ typedef struct __attribute__((__packed__)) {
     uint32_t frame_id;
     BOARD_CONF_SENSOR1_SAMPLE_T data;
 } sample_sensor1_t;
-
+#if BOARD_CONF_USE_SENSOR2
 typedef struct __attribute__((__packed__)) {
     char sensor_name[8];
     uint32_t frame_id;
     BOARD_CONF_SENSOR2_SAMPLE_T data;
 } sample_sensor2_t;
-
+#endif
 /* Timer interrupt handler */
 void
 sample_irq(TIM_TypeDef *tim)
@@ -118,6 +118,7 @@ init_i2c0_pins(void)
     return MANIKIN_STATUS_OK;
 }
 
+#if BOARD_CONF_USE_SENSOR2
 /* I2C1 pin init */
 static manikin_status_t
 init_i2c1_pins(void)
@@ -147,6 +148,24 @@ init_i2c1_pins(void)
     BOARD_CONF_I2C1_CLK_EN();
     return MANIKIN_STATUS_OK;
 }
+#endif
+#define I2C_MIN_ADDR 0x03
+#define I2C_MAX_ADDR 0x77
+
+void manikin_i2c_scan_bus(manikin_i2c_inst_t i2c_inst)
+{
+    printf("Starting I2C scan...\n");
+
+    for (uint8_t addr = I2C_MIN_ADDR; addr <= I2C_MAX_ADDR; addr++)
+    {
+        if (manikin_i2c_check_device_address(i2c_inst, addr))
+        {
+            SEGGER_RTT_printf(0, "-> Device found at address 0x%02X\n", addr);
+        }
+    }
+
+     SEGGER_RTT_printf(0,"I2C scan complete.\n");
+}
 
 /* Sensor 1 init */
 static manikin_status_t
@@ -156,19 +175,22 @@ init_i2c_sensor1(void)
 
     manikin_i2c_init(BOARD_CONF_I2C0_INSTANCE, BOARD_CONF_I2C0_SPEED);
     sensor1_ctx.i2c         = BOARD_CONF_I2C0_INSTANCE;
-    sensor1_ctx.i2c_addr    = BOARD_CONF_SENSOR1_ADDR;
+    sensor1_ctx.i2c_addr    = 0x29 << 1;
     timer1_ctx.frequency    = BOARD_CONF_SENSOR1_SAMPLE_RATE_HZ;
     timer1_ctx.timer        = BOARD_CONF_TIMER_SENSOR_1;
     timer1_ctx.watchdog     = WWDG;
-
+ 
     manikin_status_t status = BOARD_CONF_SENSOR1_INIT(&sensor1_ctx);
     if (status == MANIKIN_STATUS_OK) {
         sample_timer_init(&timer1_ctx);
     }
 
+
+
+
     return MANIKIN_STATUS_OK;
 }
-
+#if BOARD_CONF_USE_SENSOR2
 /* Sensor 2 init */
 static manikin_status_t
 init_i2c_sensor2(void)
@@ -187,7 +209,7 @@ init_i2c_sensor2(void)
 
     return MANIKIN_STATUS_OK;
 }
-
+#endif
 #if BOARD_CONF_USE_SENSOR3
 static manikin_status_t
 init_i2c_sensor3(void)
@@ -294,8 +316,9 @@ check_and_sample_sensor1(uint8_t *data_buf)
 manikin_status_t
 check_and_sample_sensor2(uint8_t *data_buf)
 {
-    sample_sensor2_t sample;
     if (sensor_timer_2_trigger) {
+        #if BOARD_CONF_USE_SENSOR2
+        sample_sensor2_t sample;
         manikin_status_t status = sample_timer_start_cb_handler(&timer2_ctx, &sensor2_ctx);
         if (status == MANIKIN_STATUS_OK) {
             status = BOARD_CONF_SENSOR2_SAMPLE(&sensor2_ctx, data_buf);
@@ -316,6 +339,7 @@ check_and_sample_sensor2(uint8_t *data_buf)
         }
 
         sample_timer_end_cb_handler(&timer2_ctx, &sensor2_ctx, status);
+        #endif
         sensor_timer_2_trigger = 0U;
     }
 
@@ -351,10 +375,12 @@ print_to_can(const char *sensor_id, uint8_t *data_buf, size_t buffer_size)
     if (len != 0U) {
         (void)isotp_send(&g_link, can_out_data, len);
     }
+    #if BOARD_CONF_USE_SENSOR2
     len = lwrb_read(&can_buff2, can_out2_data, sizeof(sample_sensor2_t));
     if (len != 0U) {
         (void)isotp_send(&g_link2, can_out2_data, len);
     }
+    #endif
 
     return MANIKIN_STATUS_OK;
 }

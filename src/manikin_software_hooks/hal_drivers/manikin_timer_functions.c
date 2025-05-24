@@ -71,7 +71,7 @@ timer_hal_start (manikin_timer_inst_t timer_inst)
     }
     timer_inst->DIER |= TIM_DIER_UIE;
     timer_inst->SR |= TIM_CR1_CEN;
-        HAL_TIM_Base_Start(timer_handle);
+    HAL_TIM_Base_Start(timer_handle);
     return 0;
 }
 

@@ -24,7 +24,15 @@ i2c_hal_init (manikin_i2c_inst_t i2c_inst, uint32_t baud)
 uint8_t
 i2c_hal_device_acknowledge (manikin_i2c_inst_t i2c_inst, uint8_t i2c_addr)
 {
-    return 0;
+       handle.Instance = i2c_inst;
+    handle.State    = HAL_I2C_STATE_READY;
+    uint8_t data = 0;
+    if(HAL_I2C_IsDeviceReady(&handle, i2c_addr, 1, 1) == HAL_OK) {
+        return 1;
+    } else {
+        return 0;
+    }
+
 }
 
 uint8_t
@@ -134,7 +142,7 @@ i2c_hal_read_bytes (manikin_i2c_inst_t i2c_inst,
 {
     handle.Instance = i2c_inst;
     handle.State    = HAL_I2C_STATE_READY;
-    if (HAL_I2C_Master_Receive(&handle, i2c_addr, data, len, 1) != HAL_OK)
+    if (HAL_I2C_Master_Receive(&handle, i2c_addr, data, len, 10) != HAL_OK)
     {
         return 0;
     }
@@ -150,7 +158,7 @@ i2c_hal_write_bytes (manikin_i2c_inst_t i2c_inst,
 
     handle.Instance = i2c_inst;
     handle.State    = HAL_I2C_STATE_READY;
-    if (HAL_I2C_Master_Transmit(&handle, i2c_addr, (uint8_t *)data, len, 1)
+    if (HAL_I2C_Master_Transmit(&handle, i2c_addr, (uint8_t *)data, len, 10)
         != HAL_OK)
     {
         return 0;

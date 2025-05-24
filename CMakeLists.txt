@@ -135,7 +135,7 @@ FetchContent_MakeAvailable(isotp)
 set(MANIKIN_PHY_CAN_PLATFORM "STM32F4")
 add_subdirectory(src/manikin_software_hooks)
 target_link_libraries(manikin_software_libraries manikin_software_hooks)
-target_link_libraries(isotp CMSIS::STM32::F405RG)
+target_link_libraries(isotp PRIVATE CMSIS::STM32::F405RG)
 # Create and link the target executable
 add_executable(${PROJECT_NAME} src/main.cpp 
                                src/hooks/syscalls.c 

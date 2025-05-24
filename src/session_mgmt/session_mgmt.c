@@ -7,12 +7,11 @@
 #include "isotp.h"
 
 extern IsoTpLink comm_link;
-extern size_t sensor1_sample_id;
-extern size_t sensor2_sample_id;
+extern size_t    sensor1_sample_id;
+extern size_t    sensor2_sample_id;
 #if BOARD_CONF_USE_SENSOR3
 extern size_t sensor3_sample_id;
 #endif
-
 
 typedef enum
 {
@@ -42,27 +41,27 @@ typedef enum
     SENSOR_STATUS_TIMEOUT
 } sensor_health_t;
 
-typedef struct 
+typedef struct
 {
-        // Byte 0
-        uint8_t        id : 4;
-        uint8_t        startup_ok : 1;
-        uint8_t        flash_ok : 1;
-        uint8_t state : 2;
+    // Byte 0
+    uint8_t id : 4;
+    uint8_t startup_ok : 1;
+    uint8_t flash_ok : 1;
+    uint8_t state : 2;
 
-        // Byte 1
-        uint8_t         sensor1_sr : 7;
-        uint8_t sensor1_health : 2;
+    // Byte 1
+    uint8_t sensor1_sr : 7;
+    uint8_t sensor1_health : 2;
 
-        // Byte 2
-        uint8_t sensor1_faultcnt : 3;
-        uint8_t sensor2_sr : 7;
+    // Byte 2
+    uint8_t sensor1_faultcnt : 3;
+    uint8_t sensor2_sr : 7;
 
-        // Byte 3
-        uint8_t sensor2_health : 2;
-        uint8_t         sensor2_faultcnt : 3;
-        char sensor1_name[8];
-        char sensor2_name[8];
+    // Byte 3
+    uint8_t sensor2_health : 2;
+    uint8_t sensor2_faultcnt : 3;
+    char    sensor1_name[8];
+    char    sensor2_name[8];
 } system_status_t;
 
 static system_status_t system_status;
@@ -78,10 +77,24 @@ session_mgmt_init ()
     system_status.sensor1_sr       = BOARD_CONF_SENSOR1_SAMPLE_RATE_HZ;
     system_status.sensor1_health   = SENSOR_STATUS_OK;
     system_status.sensor2_faultcnt = 0;
-    system_status.sensor2_sr       = BOARD_CONF_SENSOR2_SAMPLE_RATE_HZ;
-    system_status.sensor2_health   = SENSOR_STATUS_OK;
-    memcpy((system_status.sensor1_name), BOARD_CONF_SENSOR1_NAME, sizeof(BOARD_CONF_SENSOR1_NAME) <= 8 ? sizeof(BOARD_CONF_SENSOR1_NAME) : 8);
-    memcpy((system_status.sensor2_name), BOARD_CONF_SENSOR2_NAME, sizeof(BOARD_CONF_SENSOR2_NAME) <= 8 ? sizeof(BOARD_CONF_SENSOR2_NAME) : 8);
+#if BOARD_CONF_USE_SENSOR2
+    system_status.sensor2_sr = BOARD_CONF_SENSOR2_SAMPLE_RATE_HZ;
+#else
+    system_status.sensor2_sr = 0;
+#endif
+    system_status.sensor2_health = SENSOR_STATUS_OK;
+    memcpy((system_status.sensor1_name),
+           BOARD_CONF_SENSOR1_NAME,
+           sizeof(BOARD_CONF_SENSOR1_NAME) <= 8
+               ? sizeof(BOARD_CONF_SENSOR1_NAME)
+               : 8);
+    #if BOARD_CONF_USE_SENSOR2
+    memcpy((system_status.sensor2_name),
+           BOARD_CONF_SENSOR2_NAME,
+           sizeof(BOARD_CONF_SENSOR2_NAME) <= 8
+               ? sizeof(BOARD_CONF_SENSOR2_NAME)
+               : 8);
+    #endif
     return MANIKIN_STATUS_OK;
 }
 
@@ -94,9 +107,9 @@ session_mgmt_on_global_can_msg (uint8_t *msg, const size_t dlc)
         {
             sensor1_sample_id = 0;
             sensor2_sample_id = 0;
-            #if BOARD_CONF_USE_SENSOR3
+#if BOARD_CONF_USE_SENSOR3
             sensor3_sample_id = 0;
-            #endif
+#endif
             start_sensor_sampling();
             system_status.state = SYSTEM_STATE_SAMPLING;
         }
@@ -136,13 +149,13 @@ session_mgmt_on_can_msg (uint8_t *msg, const size_t dlc)
             break;
         }
         case SYSTEM_CMD_GET_NUM_SAMPLES_SENSOR_3: {
-            #if BOARD_CONF_USE_SENSOR3
+#if BOARD_CONF_USE_SENSOR3
             memcpy(transmit_buffer, &sensor3_sample_id, sizeof(size_t));
             isotp_send(&comm_link, transmit_buffer, sizeof(size_t));
-            #else
+#else
             memset(transmit_buffer, 0x00, sizeof(size_t));
             isotp_send(&comm_link, transmit_buffer, sizeof(size_t));
-            #endif
+#endif
             break;
         }
         case SYSTEM_CMD_RETRANSMIT_SAMPLE_SENSOR_1: {
@@ -159,7 +172,7 @@ session_mgmt_on_can_msg (uint8_t *msg, const size_t dlc)
             isotp_send(&comm_link, transmit_buffer, sizeof(system_status_t));
             break;
         }
-        default:{
+        default: {
             break;
         }
     }
@@ -194,13 +207,13 @@ session_mgmt_on_usb_msg (uint8_t *msg, const size_t size)
             break;
         }
         case SYSTEM_CMD_GET_NUM_SAMPLES_SENSOR_3: {
-            #if BOARD_CONF_USE_SENSOR3
+#if BOARD_CONF_USE_SENSOR3
             memcpy(transmit_buffer, &sensor3_sample_id, sizeof(size_t));
             isotp_send(&comm_link, transmit_buffer, sizeof(size_t));
-            #else
+#else
             memset(transmit_buffer, 0x00, sizeof(size_t));
             CDC_Transmit_FS(transmit_buffer, sizeof(size_t));
-            #endif
+#endif
             break;
         }
         case SYSTEM_CMD_RETRANSMIT_SAMPLE_SENSOR_1: {
@@ -217,7 +230,7 @@ session_mgmt_on_usb_msg (uint8_t *msg, const size_t size)
             CDC_Transmit_FS(transmit_buffer, sizeof(system_status_t));
             break;
         }
-        default:{
+        default: {
             break;
         }
     }
