@@ -6,7 +6,6 @@
 
 #include "stm32f405xx.h"
 /* Sensor includes */
-#include "bmm350/bmm350_driver.h"
 #include "bhi360_fusion/bhi360_fusion.h"
 
 #define BOARD_CONF_SENSORHUB_ID 1U
