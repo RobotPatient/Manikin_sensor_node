@@ -22,10 +22,11 @@ extern IsoTpLink comm_link;
 static uint8_t g_isotpRecvBuf[128];
 static uint8_t g_isotpSendBuf[128];
 
+#if BOARD_CONF_USE_SENSOR2
 /* Alloc send and receive buffer statically in RAM */
 static uint8_t g_isotpRecvBuf2[128];
 static uint8_t g_isotpSendBuf2[128];
-
+#endif
 
 /* Alloc send and receive buffer statically in RAM */
 uint8_t g_isotpRecvBuf3[128];
@@ -79,7 +80,7 @@ can_phy_hal_set_filter (void)
     can_filter.FilterFIFOAssignment = CAN_RX_FIFO0;
     can_filter.FilterActivation     = ENABLE;
     // List of IDs you want to receive
-    uint16_t ids[] = {BOARD_CONF_CAN_SENSOR1_RX_ID, BOARD_CONF_CAN_SENSOR2_RX_ID, BOARD_CONF_CAN_STATUS_RX_ID};
+    uint16_t ids[] = {BOARD_CONF_CAN_SENSOR1_RX_ID, BOARD_CONF_CAN_STATUS_RX_ID, BOARD_CONF_CAN_GLOBAL_BRDCAST_RX_ID};
     uint8_t num_ids = sizeof(ids) / sizeof(ids[0]);
 
     for (uint8_t i = 0; i < num_ids; ++i)
@@ -119,10 +120,13 @@ HAL_CAN_RxFifo0MsgPendingCallback (CAN_HandleTypeDef *hcan)
         if (rx_header.StdId == BOARD_CONF_CAN_SENSOR1_RX_ID)
         {
             isotp_on_can_message(&g_link, rx_data, rx_header.DLC);
+        #if BOARD_CONF_USE_SENSOR2
         } else if(rx_header.StdId == BOARD_CONF_CAN_SENSOR2_RX_ID) {
             isotp_on_can_message(&g_link2, rx_data, rx_header.DLC);
+        #endif
         } else if(rx_header.StdId == BOARD_CONF_CAN_STATUS_RX_ID) {
             isotp_on_can_message(&comm_link,rx_data, rx_header.DLC);
+
         } else if(rx_header.StdId == BOARD_CONF_CAN_GLOBAL_BRDCAST_RX_ID) {
             session_mgmt_on_global_can_msg(rx_data, rx_header.DLC);
         }
@@ -229,11 +233,11 @@ init_can (void)
     isotp_init_link(&g_link, BOARD_CONF_CAN_SENSOR1_TX_ID,
         g_isotpSendBuf, sizeof(g_isotpSendBuf), 
         g_isotpRecvBuf, sizeof(g_isotpRecvBuf));
-    
+    #if BOARD_CONF_USE_SENSOR2
     isotp_init_link(&g_link2, BOARD_CONF_CAN_SENSOR2_TX_ID,
             g_isotpSendBuf2, sizeof(g_isotpSendBuf2), 
             g_isotpRecvBuf2, sizeof(g_isotpRecvBuf2));
- 
+    #endif
     isotp_init_link(&comm_link, BOARD_CONF_CAN_STATUS_TX_ID,
                 g_isotpSendBuf3, sizeof(g_isotpSendBuf3), 
                 g_isotpRecvBuf3, sizeof(g_isotpRecvBuf3));
